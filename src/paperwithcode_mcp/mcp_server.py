@@ -1,131 +1,109 @@
 from __future__ import annotations
 
-import argparse
 import json
 import os
-import uuid
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .client import PaperPageClient
-from .resolver import resolve_code_link
+from mcp.server.fastmcp import FastMCP
+
+from .resolver import (
+    get_paper_details,
+    list_daily_papers,
+    read_paper,
+    resolve_code_link,
+)
+
+mcp = FastMCP(
+    "paperwithcode-mcp",
+    instructions="Resolve arXiv paper IDs to GitHub repos and explore papers from Hugging Face Papers.",
+)
 
 
-def _tool_schema() -> dict:
-    return {
-        "name": "resolve_code_link",
-        "description": "Resolve an arXiv ID to a GitHub repository URL from the corresponding paper page.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"arxiv_id": {"type": "string"}},
-            "required": ["arxiv_id"],
-            "additionalProperties": False,
+@mcp.tool(
+    description="Resolve an arXiv ID to a GitHub repository URL from the corresponding HF Papers page."
+)
+async def resolve_code_link_tool(arxiv_id: str) -> str:
+    result = resolve_code_link({"arxiv_id": arxiv_id})
+    if result is None:
+        return json.dumps({"error": "No GitHub repository found"}, ensure_ascii=False)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool(
+    description="Get detailed paper metadata including title, authors, abstract, GitHub repo, GitHub stars, AI summary, keywords, and upvotes."
+)
+async def get_paper_details_tool(arxiv_id: str) -> str:
+    data = get_paper_details(arxiv_id)
+    if data is None:
+        return json.dumps({"error": "Paper not found"}, ensure_ascii=False)
+    return json.dumps(
+        {
+            "id": data.id,
+            "title": data.title,
+            "authors": data.authors,
+            "published_at": data.publishedAt,
+            "abstract": data.summary,
+            "upvotes": data.upvotes,
+            "github_url": data.githubRepo,
+            "github_stars": data.githubStars,
+            "ai_summary": data.ai_summary,
+            "ai_keywords": data.ai_keywords,
         },
-    }
+        ensure_ascii=False,
+    )
 
 
-class PapersWithCodeMcpApp:
-    def __init__(self, client: PaperPageClient | None = None):
-        self.client = client or PaperPageClient()
-
-    def handle_jsonrpc(self, payload: dict) -> tuple[dict, str | None]:
-        method = payload.get("method")
-        request_id = payload.get("id")
-
-        if method == "initialize":
-            return (
-                {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "protocolVersion": "2025-03-26",
-                        "serverInfo": {"name": "paperwithcode-mcp", "version": "0.1.0"},
-                        "capabilities": {"tools": {}},
-                    },
-                },
-                str(uuid.uuid4()),
-            )
-
-        if method == "tools/list":
-            return (
-                {"jsonrpc": "2.0", "id": request_id, "result": {"tools": [_tool_schema()]}},
-                None,
-            )
-
-        if method == "tools/call":
-            params = payload.get("params") or {}
-            if params.get("name") != "resolve_code_link":
-                return ({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Unknown tool"}}, None)
-            result = resolve_code_link(params.get("arguments") or {}, client=self.client)
-            return (
-                {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {
-                        "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
-                        "structuredContent": result,
-                    },
-                },
-                None,
-            )
-
-        return ({"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Unsupported method"}}, None)
+@mcp.tool(
+    description="Fetch the full text of a paper as markdown."
+)
+async def read_paper_tool(arxiv_id: str) -> str:
+    text = read_paper(arxiv_id)
+    if text is None:
+        return json.dumps({"error": "Paper content not available"}, ensure_ascii=False)
+    return text
 
 
-class _Handler(BaseHTTPRequestHandler):
-    app: PapersWithCodeMcpApp
+@mcp.tool(
+    description="List papers featured on Hugging Face Papers for a given date (YYYY-MM-DD format). Defaults to today."
+)
+async def list_daily_papers_tool(date: str | None = None) -> str:
+    papers = list_daily_papers(date)
+    return json.dumps(
+        [
+            {
+                "id": p.id,
+                "title": p.title,
+                "authors": p.authors,
+                "summary": p.summary,
+                "published_at": p.publishedAt,
+                "upvotes": p.upvotes,
+                "num_comments": p.numComments,
+            }
+            for p in papers
+        ],
+        ensure_ascii=False,
+    )
 
-    def do_GET(self) -> None:  # noqa: N802
-        if self.path != "/health":
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(b"ok")
 
-    def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/mcp":
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-
-        length = int(self.headers.get("Content-Length", "0"))
-        payload = json.loads(self.rfile.read(length) or b"{}")
-        response, session_id = self.app.handle_jsonrpc(payload)
-
-        body = "data: " + json.dumps(response, ensure_ascii=False) + "\n\n"
-        self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        if session_id:
-            self.send_header("mcp-session-id", session_id)
-        self.end_headers()
-        self.wfile.write(body.encode("utf-8"))
-
-    def log_message(self, format: str, *args) -> None:  # noqa: A003
-        return
+def create_server() -> FastMCP:
+    return mcp
 
 
 def main(argv: list[str] | None = None) -> int:
-    env_base_url = os.getenv("PWC_BASE_URL", "https://huggingface.co/papers")
-    env_proxy_url = os.getenv("PWC_PROXY_URL")
-    env_timeout = float(os.getenv("PWC_TIMEOUT", "15.0"))
+    import argparse
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="HF Papers MCP Server")
+    parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--base-url", default=env_base_url)
-    parser.add_argument("--proxy-url", default=env_proxy_url)
-    parser.add_argument("--timeout", type=float, default=env_timeout)
     args = parser.parse_args(argv)
 
-    client = PaperPageClient(base_url=args.base_url, proxy_url=args.proxy_url, timeout=args.timeout)
-    _Handler.app = PapersWithCodeMcpApp(client=client)
-    server = ThreadingHTTPServer((args.host, args.port), _Handler)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        return 130
-    finally:
-        server.server_close()
+    if args.transport == "sse":
+        os.environ.setdefault("MCP_HOST", args.host)
+        os.environ.setdefault("MCP_PORT", str(args.port))
+
+    mcp.run(transport=args.transport)
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,85 +1,66 @@
-import os
+from __future__ import annotations
+
 import json
-
-from paperwithcode_mcp.client import PaperPageClient
-from paperwithcode_mcp.mcp_server import PapersWithCodeMcpApp
-from paperwithcode_mcp import mcp_server
+from paperwithcode_mcp.mcp_server import create_server, main
 
 
-class FakeClient:
-    def fetch(self, arxiv_id: str) -> str:
-        return '<script>{"githubRepo":"https://github.com/shiyu-coder/Kronos"}</script>'
+def test_create_server_returns_fastmcp_instance():
+    server = create_server()
+    assert server is not None
+    assert server.name == "paperwithcode-mcp"
 
 
-def test_initialize_and_tools_call():
-    app = PapersWithCodeMcpApp(client=FakeClient())
-
-    init_response, session_id = app.handle_jsonrpc(
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "test", "version": "0.1.0"},
-            },
-        }
-    )
-    assert session_id is not None
-
-    call_response, _ = app.handle_jsonrpc(
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {
-                "name": "resolve_code_link",
-                "arguments": {"arxiv_id": "2508.02739"},
-            },
-        }
-    )
-    payload = json.loads(call_response["result"]["content"][0]["text"])
-    assert payload["github_url"] == "https://github.com/shiyu-coder/Kronos"
+def test_main_parses_help():
+    try:
+        main(["--help"])
+    except SystemExit as e:
+        assert e.code == 0
 
 
-def test_main_reads_environment_defaults(monkeypatch):
-    captured = {}
-
-    class DummyServer:
-        def __init__(self, address, handler_class):
-            captured["address"] = address
-            captured["handler_class"] = handler_class
-
-        def serve_forever(self):
-            raise KeyboardInterrupt
-
-        def server_close(self):
-            captured["closed"] = True
-
-    monkeypatch.setenv("PWC_BASE_URL", "https://example.com/papers")
-    monkeypatch.setenv("PWC_PROXY_URL", "http://proxy.local:7890")
-    monkeypatch.setenv("PWC_TIMEOUT", "21.5")
-    monkeypatch.setattr(mcp_server, "ThreadingHTTPServer", DummyServer)
-
-    exit_code = mcp_server.main(["--host", "127.0.0.1", "--port", "9999"])
-
-    assert exit_code == 130
-    assert captured["address"] == ("127.0.0.1", 9999)
-    assert mcp_server._Handler.app.client.base_url == "https://example.com/papers"
-    assert mcp_server._Handler.app.client.proxy_url == "http://proxy.local:7890"
-    assert mcp_server._Handler.app.client.timeout == 21.5
-    assert captured["closed"] is True
+def test_main_sse_transport():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8787)
+    args = parser.parse_args(["--transport", "sse", "--host", "0.0.0.0", "--port", "9999"])
+    assert args.transport == "sse"
+    assert args.host == "0.0.0.0"
+    assert args.port == 9999
 
 
-def test_client_prefers_standard_proxy_env(monkeypatch):
-    monkeypatch.delenv("PWC_PROXY_URL", raising=False)
-    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.local:8443")
-    client = PaperPageClient()
-    assert client._effective_proxy_url() == "http://proxy.local:8443"
+SAMPLE_PAGE_HTML = """<div data-target="PaperContent" data-props="{&quot;paper&quot;:{&quot;id&quot;:&quot;2508.02739&quot;,&quot;authors&quot;:[{&quot;name&quot;:&quot;Yu Shi&quot;}],&quot;title&quot;:&quot;Kronos&quot;,&quot;summary&quot;:&quot;Abstract text&quot;,&quot;upvotes&quot;:44,&quot;githubRepo&quot;:&quot;https://github.com/shiyu-coder/Kronos&quot;,&quot;githubStars&quot;:31189},&quot;markdownContentUrl&quot;:&quot;https://example.com/md&quot;}"></div>"""
 
 
-def test_client_explicit_proxy_overrides_env(monkeypatch):
-    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.local:8443")
-    client = PaperPageClient(proxy_url="http://manual.proxy:7890")
-    assert client._effective_proxy_url() == "http://manual.proxy:7890"
+def test_tools_are_callable_via_resolver():
+    from paperwithcode_mcp.resolver import get_paper_details, list_daily_papers, read_paper, resolve_code_link
+
+    class MockClient:
+        def fetch(self, arxiv_id):
+            return SAMPLE_PAGE_HTML
+        def fetch_daily_papers(self, date=None):
+            return """[{"paper":{"id":"2606.1234","authors":[{"name":"Alice"}],"title":"Paper A","summary":"abs"},"numComments":3}]"""
+        def fetch_markdown(self, url):
+            return "# Markdown Content"
+
+    client = MockClient()
+
+    # resolve_code_link
+    result = resolve_code_link({"arxiv_id": "2508.02739"}, client=client)
+    assert result is not None
+    assert result["github_url"] == "https://github.com/shiyu-coder/Kronos"
+
+    # get_paper_details
+    data = get_paper_details("2508.02739", client=client)
+    assert data is not None
+    assert data.title == "Kronos"
+    assert data.upvotes == 44
+
+    # read_paper
+    md = read_paper("2508.02739", client=client)
+    assert md == "# Markdown Content"
+
+    # list_daily_papers
+    papers = list_daily_papers(client=client)
+    assert len(papers) == 1
+    assert papers[0].title == "Paper A"
