@@ -44,6 +44,7 @@ def test_extract_paper_page_data_returns_all_fields():
     assert data.githubStars == 31189
     assert data.ai_summary == "Kronos, a specialized..."
     assert data.ai_keywords == ["LLM", "Finance"]
+    assert data.discussionId == "abc123"
     assert data.markdownContentUrl == "https://hf.co/buckets/...md"
 
 
@@ -65,6 +66,8 @@ def test_extract_paper_page_data_handles_missing_optional_fields():
     assert data.ai_summary is None
     assert data.ai_keywords is None
     assert data.markdownContentUrl is None
+    assert data.publishedAt is None
+    assert data.discussionId is None
 
 
 SAMPLE_EMPTY = ""
