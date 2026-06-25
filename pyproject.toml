@@ -18,8 +18,8 @@ dependencies = ["mcp[cli]>=1.4.1"]
 dev = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/jerry/paperwithcode-mcp"
-Repository = "https://github.com/jerry/paperwithcode-mcp"
+Homepage = "https://github.com/GtJerry111/paperwithcode-hf-mcp"
+Repository = "https://github.com/GtJerry111/paperwithcode-hf-mcp"
 
 [project.scripts]
 paperwithcode-mcp = "paperwithcode_mcp.mcp_server:cli"

@@ -24,7 +24,7 @@ This project uses **Hugging Face Papers** as its data source, NOT the paperswith
 ### pip
 
 ```bash
-pip install git+https://github.com/jerry/paperwithcode-mcp.git
+pip install git+https://github.com/GtJerry111/paperwithcode-hf-mcp.git
 
 paperwithcode-mcp  # stdio mode
 paperwithcode-mcp --transport sse --host 127.0.0.1 --port 8787  # SSE mode
@@ -33,7 +33,7 @@ paperwithcode-mcp --transport sse --host 127.0.0.1 --port 8787  # SSE mode
 ### uv
 
 ```bash
-uv tool install git+https://github.com/jerry/paperwithcode-mcp.git
+uv tool install git+https://github.com/GtJerry111/paperwithcode-hf-mcp.git
 
 paperwithcode-mcp  # stdio mode
 ```
@@ -51,7 +51,7 @@ docker run -i --rm -p 8787:8787 paperwithcode-mcp --transport sse --host 0.0.0.0
 ## Development
 
 ```bash
-git clone <repo-url> && cd paperwithcode-mcp
+git clone https://github.com/GtJerry111/paperwithcode-hf-mcp.git && cd paperwithcode-hf-mcp
 
 # pip
 pip install -e ".[dev]"
