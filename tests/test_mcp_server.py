@@ -67,3 +67,16 @@ def test_tools_are_callable_via_resolver():
     papers = list_daily_papers(client=client)
     assert len(papers) == 1
     assert papers[0].title == "Paper A"
+
+
+def test_cli_entry_point():
+    """Verify the console_scripts entry function exists and calls main."""
+    from paperwithcode_mcp.mcp_server import cli
+    assert callable(cli)
+
+
+def test_main_importable():
+    """Verify the module can be imported as `-m paperwithcode_mcp`."""
+    import importlib
+    mod = importlib.import_module("paperwithcode_mcp")
+    assert mod is not None

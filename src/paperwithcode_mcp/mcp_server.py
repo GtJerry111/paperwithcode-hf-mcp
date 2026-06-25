@@ -103,5 +103,10 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":
+def cli() -> None:
+    """Console script entry point for `paperwithcode-mcp` command."""
     raise SystemExit(main())
+
+
+if __name__ == "__main__":
+    cli()

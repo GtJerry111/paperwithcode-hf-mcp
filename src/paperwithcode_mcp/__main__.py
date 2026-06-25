@@ -1,6 +1,4 @@
-from .mcp_server import main
-
+from .mcp_server import cli
 
 if __name__ == "__main__":
-    raise SystemExit(main())
-
+    cli()

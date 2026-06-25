@@ -5,11 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "paperwithcode-mcp"
 version = "0.1.0"
+description = "MCP server for paper reading and code repository discovery from Hugging Face Papers"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "paperwithcode-mcp contributors"},
+]
 requires-python = ">=3.11"
 dependencies = ["mcp[cli]>=1.4.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/jerry/paperwithcode-mcp"
+Repository = "https://github.com/jerry/paperwithcode-mcp"
+
+[project.scripts]
+paperwithcode-mcp = "paperwithcode_mcp.mcp_server:cli"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
