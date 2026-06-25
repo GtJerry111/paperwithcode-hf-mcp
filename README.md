@@ -110,11 +110,9 @@ cd paperwithcode-hf-mcp
 
 # pip
 pip install -e ".[dev]"
-pytest tests/ -v
 
 # uv
 uv sync --group dev
-uv run pytest tests/ -v
 ```
 
 ### Architecture
