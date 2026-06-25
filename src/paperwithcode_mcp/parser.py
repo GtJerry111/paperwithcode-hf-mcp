@@ -54,7 +54,11 @@ def _clean_repo_url(url: str) -> str | None:
 
 def extract_repo_url(html: str) -> str | None:
     """Extract the first GitHub repository URL from a HF Papers page HTML."""
-    match = GITHUB_REPO_FIELD_RE.search(html)
+    # Unescape HTML entities (e.g. &quot; -> \") so the regex can match
+    # JSON keys inside HTML-escaped data-props attributes.
+    import html as html_mod
+
+    match = GITHUB_REPO_FIELD_RE.search(html_mod.unescape(html))
     if match:
         cleaned = _clean_repo_url(match.group(1))
         if cleaned:
