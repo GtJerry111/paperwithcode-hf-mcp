@@ -1,33 +1,51 @@
 # paperwithcode_mcp
 
-Standalone MCP service that resolves `arxiv_id -> github_url` from Hugging Face Papers.
+MCP server that provides paper reading and code repository discovery from Hugging Face Papers. Supports both stdio (Claude Desktop) and SSE (remote) transports.
 
-## Run locally
+## Features
+
+- **resolve_code_link** — Resolve an arXiv ID to its GitHub repository URL
+- **get_paper_details** — Get paper metadata: title, authors, abstract, GitHub stars, AI summary, keywords, upvotes
+- **read_paper** — Fetch full paper text as markdown
+- **list_daily_papers** — List papers featured on Hugging Face Papers
+
+## Quick Start
 
 ```bash
-cd /Users/jerry/Projects/paperwithcode_mcp
-export HTTPS_PROXY=http://127.0.0.1:7890
-export HTTP_PROXY=http://127.0.0.1:7890
-PYTHONPATH=src python3 -m paperwithcode_mcp --host 127.0.0.1 --port 8787
+pip install -e ".[dev]"
+
+# stdio mode (for Claude Desktop)
+PYTHONPATH=src python3 -m paperwithcode_mcp
+
+# SSE mode (remote access)
+PYTHONPATH=src python3 -m paperwithcode_mcp --transport sse --host 127.0.0.1 --port 8787
 ```
 
 ## Environment
 
-- `PWC_BASE_URL` defaults to `https://huggingface.co/papers`
-- `PWC_PROXY_URL` overrides standard proxy env vars when set
-- `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` are read automatically
-- `PWC_TIMEOUT` controls request timeout in seconds
+- `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` — proxy settings (auto-detected)
+- `PWC_TIMEOUT` — request timeout in seconds (default: 15.0)
 
-## MCP check
+## Claude Desktop Integration
 
-Send `initialize`, then `tools/call` with:
+Add to your `claude_desktop_config.json`:
 
 ```json
-{"arxiv_id":"2508.02739"}
+{
+  "mcpServers": {
+    "paperwithcode": {
+      "command": "python3",
+      "args": ["-m", "paperwithcode_mcp"],
+      "env": {
+        "HTTPS_PROXY": "http://127.0.0.1:7890"
+      }
+    }
+  }
+}
 ```
 
-Expected result:
+## Development
 
-```json
-{"github_url":"https://github.com/shiyu-coder/Kronos"}
+```bash
+python3 -m pytest tests/ -v
 ```
