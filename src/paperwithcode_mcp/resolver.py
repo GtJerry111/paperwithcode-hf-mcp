@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .client import PaperPageClient, extract_repo_url
+from .client import PaperPageClient
+from .parser import extract_repo_url
 
 
 def _is_repo_url(url: str | None) -> bool:

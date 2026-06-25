@@ -1,60 +1,26 @@
 from __future__ import annotations
 
-import re
 import subprocess
 import time
 from dataclasses import dataclass
-from html.parser import HTMLParser
 from os import getenv
 from urllib.parse import urljoin
-
-GITHUB_REPO_RE = re.compile(r"https://github\.com/[^\"'\s<>/]+/[^\"'\s<>/]+(?:/[^\"'\s<>/]*)?")
-GITHUB_REPO_FIELD_RE = re.compile(r'"githubRepo"\s*:\s*"([^"]+)"')
-
-
-class _GithubLinkCollector(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.repo_urls: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag != "a":
-            return
-        attrs_dict = dict(attrs)
-        href = attrs_dict.get("href") or ""
-        if GITHUB_REPO_RE.fullmatch(href):
-            self.repo_urls.append(href)
-
-
-def _clean_repo_url(url: str) -> str | None:
-    cleaned = url.replace("&quot;", '"').strip().rstrip('".,;)]}>')
-    if GITHUB_REPO_RE.fullmatch(cleaned):
-        return cleaned
-    return None
-
-
-def extract_repo_url(html: str) -> str | None:
-    match = GITHUB_REPO_FIELD_RE.search(html)
-    if match:
-        cleaned = _clean_repo_url(match.group(1))
-        if cleaned:
-            return cleaned
-
-    parser = _GithubLinkCollector()
-    parser.feed(html)
-    for repo_url in parser.repo_urls:
-        cleaned = _clean_repo_url(repo_url)
-        if cleaned:
-            return cleaned
-    return None
 
 
 @dataclass
 class PaperPageClient:
-    base_url: str = "https://huggingface.co/papers"
-    timeout: float = 15.0
+    base_url: str | None = None
+    timeout: float | None = None
     proxy_url: str | None = None
     auto_proxy: bool = True
+
+    def __post_init__(self) -> None:
+        if self.base_url is None:
+            self.base_url = getenv("PWC_BASE_URL", "https://huggingface.co/papers")
+        if self.timeout is None:
+            self.timeout = float(getenv("PWC_TIMEOUT", "15.0"))
+        if self.proxy_url is None and getenv("PWC_PROXY_URL"):
+            self.proxy_url = getenv("PWC_PROXY_URL")
 
     def _effective_proxy_url(self) -> str | None:
         if self.proxy_url is not None:
@@ -62,8 +28,7 @@ class PaperPageClient:
         if not self.auto_proxy:
             return None
         return (
-            getenv("PWC_PROXY_URL")
-            or getenv("HTTPS_PROXY")
+            getenv("HTTPS_PROXY")
             or getenv("https_proxy")
             or getenv("HTTP_PROXY")
             or getenv("http_proxy")
@@ -71,23 +36,18 @@ class PaperPageClient:
             or getenv("all_proxy")
         )
 
-    def fetch(self, arxiv_id: str) -> str:
-        url = urljoin(self.base_url.rstrip("/") + "/", arxiv_id)
+    def _curl(self, url: str) -> str:
         command = [
             "curl",
             "-L",
             "--http1.1",
-            "--retry",
-            "2",
+            "--retry", "2",
             "--retry-all-errors",
-            "--retry-delay",
-            "1",
-            "--connect-timeout",
-            "10",
+            "--retry-delay", "1",
+            "--connect-timeout", "10",
             "--silent",
             "--show-error",
-            "--max-time",
-            str(int(self.timeout)),
+            "--max-time", str(int(self.timeout)),
             url,
         ]
         proxy_url = self._effective_proxy_url()
@@ -103,3 +63,19 @@ class PaperPageClient:
                 if attempt == 0:
                     time.sleep(1)
         raise last_error  # type: ignore[misc]
+
+    def fetch(self, arxiv_id: str) -> str:
+        """Fetch the HTML of a single paper page from HF Papers."""
+        url = urljoin(self.base_url.rstrip("/") + "/", arxiv_id)
+        return self._curl(url)
+
+    def fetch_daily_papers(self, date: str | None = None) -> str:
+        """Fetch the daily papers listing JSON from the HF API."""
+        url = "https://huggingface.co/api/daily_papers"
+        if date:
+            url = f"{url}?date={date}"
+        return self._curl(url)
+
+    def fetch_markdown(self, url: str) -> str:
+        """Fetch content from a URL (typically the paper markdown content URL)."""
+        return self._curl(url)
