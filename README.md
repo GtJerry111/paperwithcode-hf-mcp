@@ -24,24 +24,76 @@ The server starts in stdio mode, ready to connect to Claude Desktop or any MCP h
 
 ## Tools
 
-| Tool | Description |
-|------|-------------|
-| `resolve_code_link` | Given an arXiv ID, return its GitHub repository URL |
-| `get_paper_details` | Return full metadata: title, authors, abstract, GitHub stars, AI summary, keywords, upvotes |
-| `read_paper` | Fetch the complete paper text as markdown (converted from arXiv HTML) |
-| `list_daily_papers` | Return the papers featured on Hugging Face Papers for a given date |
+### `resolve_code_link`
 
-### Usage Examples
+Resolve an arXiv ID to its GitHub repository URL.
 
-Each tool accepts simple string arguments and returns JSON. Here is what you can expect from each:
+**Parameters:**
 
-**resolve_code_link** — `"2508.02739"` returns `{"github_url": "https://github.com/shiyu-coder/Kronos"}`
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `arxiv_id` | `string` | Yes | The arXiv paper ID (e.g. `2508.02739`) |
 
-**get_paper_details** — `"2508.02739"` returns a rich object with title, authors (list), summary, upvotes (integer), githubStars (integer), ai_summary (string), ai_keywords (list), and more.
+**Returns:** `{ "github_url": "https://github.com/shiyu-coder/Kronos" }`
 
-**read_paper** — `"2508.02739"` returns the full paper as a markdown string (all sections: abstract, introduction, method, results, etc.).
+Returns `null` if no GitHub repository is found for the given paper.
 
-**list_daily_papers** — `"2026-06-23"` returns up to 50 papers with id, title, authors, summary, upvotes, and comment count. Omit the date to get today's papers.
+### `get_paper_details`
+
+Get detailed paper metadata from Hugging Face Papers.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `arxiv_id` | `string` | Yes | The arXiv paper ID (e.g. `2508.02739`) |
+
+**Returns:** JSON object with:
+- `id` — arXiv ID
+- `title` — paper title
+- `authors` — list of author names
+- `publishedAt` — publication date
+- `summary` — abstract text
+- `upvotes` — upvote count on Hugging Face
+- `githubRepo` — linked GitHub repository URL (if any)
+- `githubStars` — GitHub star count (if repo exists)
+- `ai_summary` — AI-generated summary
+- `ai_keywords` — list of AI-extracted keywords
+- `discussionId` — Hugging Face discussion thread ID
+- `markdownContentUrl` — URL to the full paper markdown
+
+Returns `null` if the paper is not found.
+
+### `read_paper`
+
+Fetch the full text of a paper as markdown.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `arxiv_id` | `string` | Yes | The arXiv paper ID (e.g. `2508.02739`) |
+
+**Returns:** A markdown string containing the complete paper text (abstract, introduction, method, results, etc.). Returns `null` if the paper cannot be found or has no markdown source.
+
+### `list_daily_papers`
+
+List papers featured on Hugging Face Papers for a given date.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `date` | `string` | No | Date in `YYYY-MM-DD` format. Defaults to today if omitted. |
+
+**Returns:** A list of papers, each containing:
+- `id` — arXiv ID
+- `title` — paper title
+- `authors` — list of author names
+- `publishedAt` — publication date
+- `summary` — abstract
+- `upvotes` — upvote count
+- `numComments` — number of comments on Hugging Face
 
 ## Deployment
 
