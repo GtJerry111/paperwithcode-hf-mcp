@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .client import PaperPageClient
-from .parser import extract_paper_page_data, extract_repo_url
+from .parser import PaperPageData, extract_paper_page_data, extract_repo_url
 
 
 def _is_repo_url(url: str | None) -> bool:
