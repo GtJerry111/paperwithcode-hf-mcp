@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from paperwithcode_mcp.mcp_server import create_server, main
 
 
@@ -18,15 +17,19 @@ def test_main_parses_help():
 
 
 def test_main_sse_transport():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8787)
-    args = parser.parse_args(["--transport", "sse", "--host", "0.0.0.0", "--port", "9999"])
-    assert args.transport == "sse"
-    assert args.host == "0.0.0.0"
-    assert args.port == 9999
+    """main() with --transport sse should parse correctly.
+    We mock mcp.run to prevent server start."""
+    from paperwithcode_mcp import mcp_server
+    original_run = mcp_server.mcp.run
+    try:
+        calls = []
+        def fake_run(**kwargs):
+            calls.append(kwargs)
+        mcp_server.mcp.run = fake_run
+        mcp_server.main(["--transport", "sse", "--host", "0.0.0.0", "--port", "9999"])
+        assert calls == [{"transport": "sse", "host": "0.0.0.0", "port": 9999}]
+    finally:
+        mcp_server.mcp.run = original_run
 
 
 SAMPLE_PAGE_HTML = """<div data-target="PaperContent" data-props="{&quot;paper&quot;:{&quot;id&quot;:&quot;2508.02739&quot;,&quot;authors&quot;:[{&quot;name&quot;:&quot;Yu Shi&quot;}],&quot;title&quot;:&quot;Kronos&quot;,&quot;summary&quot;:&quot;Abstract text&quot;,&quot;upvotes&quot;:44,&quot;githubRepo&quot;:&quot;https://github.com/shiyu-coder/Kronos&quot;,&quot;githubStars&quot;:31189},&quot;markdownContentUrl&quot;:&quot;https://example.com/md&quot;}"></div>"""

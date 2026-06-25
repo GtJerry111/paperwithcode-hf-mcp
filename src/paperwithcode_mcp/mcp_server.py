@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 
 from mcp.server.fastmcp import FastMCP
 
@@ -98,10 +97,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.transport == "sse":
-        os.environ.setdefault("MCP_HOST", args.host)
-        os.environ.setdefault("MCP_PORT", str(args.port))
-
-    mcp.run(transport=args.transport)
+        mcp.run(transport="sse", host=args.host, port=args.port)
+    else:
+        mcp.run(transport="stdio")
     return 0
 
 
