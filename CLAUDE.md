@@ -4,13 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- Install project: `pip install -e ".[dev]"`
-- Run server (stdio): `paperwithcode-mcp`
-- Run server (SSE): `paperwithcode-mcp --transport sse --host 127.0.0.1 --port 8787`
-- Run server from source (no install): `PYTHONPATH=src python3 -m paperwithcode_mcp`
+### pip
+- Install: `pip install -e ".[dev]"`
 - Run tests: `python3 -m pytest tests/ -v`
-- Run a single test: `python3 -m pytest tests/test_parser.py::test_extract_paper_page_data_returns_all_fields -v`
-- Build Docker: `docker build -t paperwithcode-mcp .`
+- Run single test: `python3 -m pytest tests/test_parser.py::test_extract_paper_page_data_returns_all_fields -v`
+- Run server: `paperwithcode-mcp`
+
+### uv
+- Sync: `uv sync --group dev`
+- Run tests: `uv run pytest tests/ -v`
+- Install as tool: `uv tool install .`
+- Run server (from source): `uv run python -m paperwithcode_mcp`
+
+### Docker
+- Build: `docker build -t paperwithcode-mcp .`
+- Run (stdio): `docker run -i --rm paperwithcode-mcp`
+- Run (SSE): `docker run -i --rm -p 8787:8787 paperwithcode-mcp --transport sse --host 0.0.0.0 --port 8787`
 
 ## Architecture
 
