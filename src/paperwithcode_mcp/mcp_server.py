@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .resolver import (
     get_paper_details,
@@ -14,6 +15,7 @@ from .resolver import (
 mcp = FastMCP(
     "paperwithcode-mcp",
     instructions="Resolve arXiv paper IDs to GitHub repos and explore papers from Hugging Face Papers.",
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
 
